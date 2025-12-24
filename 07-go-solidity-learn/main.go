@@ -31,6 +31,7 @@ func main() {
 		log.Fatal(err)
 	}
 	chainID, err := client.NetworkID(context.Background())
+	fmt.Println("Chain ID:", chainID)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -49,11 +50,11 @@ func main() {
 	}
 	t.GasPrice = gasPrice
 	t.GasLimit = 3000000
-	//add, err := tx.Add(t, "First task")
-	//if err != nil {
-	//	log.Fatal(err)
-	//}
-	//fmt.Println("add:", add.Hash())
+	add, err := tx.Add(t, "First task")
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println("add:", add.Hash())
 	pubkeyAddress := crypto.PubkeyToAddress(key.PrivateKey.PublicKey)
 	tasks, err := tx.List(&bind.CallOpts{
 		From: pubkeyAddress,

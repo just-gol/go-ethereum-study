@@ -27,7 +27,7 @@ func main() {
 	//}
 	// 0303d1f5f03ba235fd91190a998e24eca120708a
 	// 838089eabffb00a1ce873705173771475cc86b3c
-	client, err := ethclient.Dial(localURL)
+	client, err := ethclient.Dial(quickNodeURL)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -48,7 +48,7 @@ func main() {
 	fb2 := new(big.Float)
 	fb2.SetString(b2.String())
 	fmt.Println("balance2", new(big.Float).Quo(fb2, big.NewFloat(math.Pow10(18))))
-	getBlockInfo(1, client)
+	//getBlockInfo(1, client)
 }
 
 func getBlockInfo(blockNumber int64, client *ethclient.Client) {
