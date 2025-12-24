@@ -117,7 +117,7 @@ func (con ApiController) TransferFrom(ctx *gin.Context) {
 	auth.GasLimit = uint64(300000)
 	auth.Value = big.NewInt(0)
 	amount := new(big.Int).Mul(big.NewInt(1), big.NewInt(1e18))
-	dst := common.HexToAddress(ctx.Query("dst"))
+	dst := common.HexToAddress(ctx.PostForm("dst"))
 	transaction, err := newWhen.TransferFrom(auth, crypto.PubkeyToAddress(privateKey.PublicKey), dst, amount)
 	if err != nil {
 		log.Fatal(err)
@@ -153,7 +153,7 @@ func (con ApiController) Deposit(ctx *gin.Context) {
 		Nonce:    nonce,
 		To:       &contractAddress,
 		Value:    depositAmount,
-		Gas:      21000,
+		Gas:      300000,
 		GasPrice: gasPrice,
 		Data:     nil,
 	}
