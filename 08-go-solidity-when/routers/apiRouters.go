@@ -12,5 +12,7 @@ func ApiRoutersInit(r *gin.Engine) {
 		group.GET("/getBalance", controller.ApiController{}.GetBalance)
 		group.POST("/transferFrom", controller.ApiController{}.TransferFrom)
 		group.POST("/deposit", controller.ApiController{}.Deposit)
+		group.POST("/approve", controller.ApiController{}.Approve)
+		group.GET("/allowance", controller.ApiController{}.Allowance)
 	}
 }

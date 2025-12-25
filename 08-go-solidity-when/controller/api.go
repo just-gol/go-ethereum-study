@@ -57,6 +57,33 @@ func (con ApiController) GetBalance(ctx *gin.Context) {
 		"balanceOf": balanceOf,
 	})
 }
+
+func (con ApiController) Allowance(ctx *gin.Context) {
+	client, err := ethclient.Dial(localURL)
+	if err != nil {
+		log.Fatal(err)
+	}
+	privateKey, err := crypto.HexToECDSA(ctx.Query("privateKeyString")[2:])
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// 创建实例
+	newWhen, err := when.NewWhen(common.HexToAddress(ctx.Query("contractAddress")), client)
+	if err != nil {
+		log.Fatal(err)
+	}
+	from := crypto.PubkeyToAddress(privateKey.PublicKey)
+	to := common.HexToAddress(ctx.Query("to"))
+	allowance, err := newWhen.Allowance(&bind.CallOpts{}, from, to)
+	if err != nil {
+		log.Fatal(err)
+	}
+	ctx.JSON(200, gin.H{
+		"allowance": allowance,
+	})
+}
+
 func (con ApiController) TransferFrom(ctx *gin.Context) {
 	client, err := ethclient.Dial(localURL)
 	if err != nil {
@@ -163,9 +190,7 @@ func (con ApiController) Approve(ctx *gin.Context) {
 	//privateKeyString := "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
 	privateKeyString := ctx.PostForm("privateKeyString")
 	// 合约地址 0x5FbDB2315678afecb367f032d93F642f64180aa3
-	contractAddress := ctx.PostForm("contractAddress")
-	address := common.HexToAddress(contractAddress)
-	newWhen, err := when.NewWhen(address, client)
+	newWhen, err := when.NewWhen(common.HexToAddress(ctx.PostForm("contractAddress")), client)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -188,4 +213,7 @@ func (con ApiController) Approve(ctx *gin.Context) {
 		log.Fatal(err)
 	}
 	fmt.Printf("Approve: %v\n", approve.Hash().Hex())
+	ctx.JSON(200, gin.H{
+		"hash": approve.Hash().Hex(),
+	})
 }
