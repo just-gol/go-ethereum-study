@@ -32,18 +32,6 @@ func (con ApiController) GetBalance(ctx *gin.Context) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	//chainId, err := client.NetworkID(context.Background())
-	//if err != nil {
-	//	log.Fatal(err)
-	//}
-	//gasPrice, err := client.SuggestGasPrice(context.Background())
-	//if err != nil {
-	//	log.Fatal(err)
-	//}
-	//nonce, err := client.PendingNonceAt(context.Background(), crypto.PubkeyToAddress(privateKey.PublicKey))
-	//if err != nil {
-	//	log.Fatal(err)
-	//}
 	// 合约地址 0x5FbDB2315678afecb367f032d93F642f64180aa3
 	contractAddress := ctx.Query("contractAddress")
 	address := common.HexToAddress(contractAddress)
@@ -53,8 +41,6 @@ func (con ApiController) GetBalance(ctx *gin.Context) {
 		log.Fatal(err)
 	}
 
-	// 查询目标账户地址 0303d1f5f03ba235fd91190a998e24eca120708a
-	//dst := common.HexToAddress(ctx.Query("dst"))
 	// 当前调用者的地址
 	dst := crypto.PubkeyToAddress(privateKey.PublicKey)
 	// 查询地址余额
@@ -117,6 +103,7 @@ func (con ApiController) TransferFrom(ctx *gin.Context) {
 	auth.GasLimit = uint64(300000)
 	auth.Value = big.NewInt(0)
 	amount := new(big.Int).Mul(big.NewInt(1), big.NewInt(1e18))
+	// 目标地址
 	dst := common.HexToAddress(ctx.PostForm("dst"))
 	transaction, err := newWhen.TransferFrom(auth, crypto.PubkeyToAddress(privateKey.PublicKey), dst, amount)
 	if err != nil {
