@@ -154,3 +154,38 @@ func (con ApiController) Deposit(ctx *gin.Context) {
 	}
 	fmt.Printf("tx sent:%s\n", tx.Hash().Hex())
 }
+
+func (con ApiController) Approve(ctx *gin.Context) {
+	client, err := ethclient.Dial(localURL)
+	if err != nil {
+		log.Fatal(err)
+	}
+	//privateKeyString := "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+	privateKeyString := ctx.PostForm("privateKeyString")
+	// 合约地址 0x5FbDB2315678afecb367f032d93F642f64180aa3
+	contractAddress := ctx.PostForm("contractAddress")
+	address := common.HexToAddress(contractAddress)
+	newWhen, err := when.NewWhen(address, client)
+	if err != nil {
+		log.Fatal(err)
+	}
+	privateKey, err := crypto.HexToECDSA(privateKeyString[2:])
+	if err != nil {
+		log.Fatal(err)
+	}
+	chainID, err := client.ChainID(context.Background())
+	if err != nil {
+		log.Fatal(err)
+	}
+	transactOpts, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
+	if err != nil {
+		log.Fatal(err)
+	}
+	to := ctx.PostForm("guy")
+	amount := new(big.Int).Mul(big.NewInt(1), big.NewInt(1e18))
+	approve, err := newWhen.Approve(transactOpts, common.HexToAddress(to), amount)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("Approve: %v\n", approve.Hash().Hex())
+}
