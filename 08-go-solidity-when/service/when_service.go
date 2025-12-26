@@ -6,6 +6,7 @@ import (
 	"math/big"
 
 	when "08-go-solidity-when/gen"
+
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -19,6 +20,7 @@ type WhenService interface {
 	TransferFrom(ctx context.Context, contractAddress common.Address, privateKey *ecdsa.PrivateKey, dst common.Address, amount *big.Int) (*types.Transaction, error)
 	Deposit(ctx context.Context, contractAddress common.Address, privateKey *ecdsa.PrivateKey, amount *big.Int) (*types.Transaction, error)
 	Approve(ctx context.Context, contractAddress common.Address, privateKey *ecdsa.PrivateKey, spender common.Address, amount *big.Int) (*types.Transaction, error)
+	Withdraw(ctx context.Context, contractAddress common.Address, privateKey *ecdsa.PrivateKey, amount *big.Int) (*types.Transaction, error)
 }
 
 type whenService struct {
@@ -120,4 +122,20 @@ func (s *whenService) Approve(ctx context.Context, contractAddress common.Addres
 		return nil, err
 	}
 	return w.Approve(auth, spender, amount)
+}
+
+func (s *whenService) Withdraw(ctx context.Context, contractAddress common.Address, privateKey *ecdsa.PrivateKey, amount *big.Int) (*types.Transaction, error) {
+	w, err := when.NewWhen(contractAddress, s.client)
+	if err != nil {
+		return nil, err
+	}
+	chainID, err := s.client.ChainID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
+	if err != nil {
+		return nil, err
+	}
+	return w.Withdraw(auth, amount)
 }

@@ -9,7 +9,7 @@
   - 创建以太坊客户端、Service 和 Handler
 - `routers/`
   - 路由注册与分发
-- `controller/`（Handler 层）
+- `handler/`
   - 负责解析请求参数、校验、返回 JSON
   - 不直接写链交互逻辑
 - `service/`

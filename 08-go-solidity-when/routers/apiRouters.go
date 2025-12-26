@@ -14,5 +14,6 @@ func ApiRoutersInit(r *gin.Engine, handler *handle.WhenHandler) {
 		group.POST("/deposit", handler.Deposit)
 		group.POST("/approve", handler.Approve)
 		group.GET("/allowance", handler.Allowance)
+		group.POST("/withdraw", handler.Withdraw)
 	}
 }

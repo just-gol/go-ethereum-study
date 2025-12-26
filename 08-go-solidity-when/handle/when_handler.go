@@ -4,6 +4,7 @@ import (
 	"crypto/ecdsa"
 	"math/big"
 	"net/http"
+	"strconv"
 
 	"08-go-solidity-when/service"
 
@@ -108,6 +109,28 @@ func (h *WhenHandler) Approve(ctx *gin.Context) {
 	spender := common.HexToAddress(to)
 	amount := new(big.Int).Mul(big.NewInt(1), big.NewInt(1e18))
 	tx, err := h.svc.Approve(ctx.Request.Context(), contractAddress, privateKey, spender, amount)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{
+		"hash": tx.Hash().Hex(),
+	})
+}
+
+func (h *WhenHandler) Withdraw(ctx *gin.Context) {
+	privateKey, err := parsePrivateKey(ctx.PostForm("privateKeyString"))
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	contractAddress := common.HexToAddress(ctx.PostForm("contractAddress"))
+	amount := ctx.PostForm("amount")
+	amountInt, err := strconv.Atoi(amount)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	}
+	tx, err := h.svc.Withdraw(ctx.Request.Context(), contractAddress, privateKey, new(big.Int).Mul(big.NewInt(int64(amountInt)), big.NewInt(1e18)))
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
