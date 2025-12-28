@@ -2,6 +2,7 @@ package handle
 
 import (
 	"crypto/ecdsa"
+	"errors"
 	"math/big"
 	"net/http"
 	"strconv"
@@ -14,11 +15,18 @@ import (
 )
 
 type WhenHandler struct {
-	svc service.WhenService
+	svc             service.WhenService
+	defaultContract common.Address
+	hasDefault      bool
 }
 
-func NewWhenHandler(svc service.WhenService) *WhenHandler {
-	return &WhenHandler{svc: svc}
+func NewWhenHandler(svc service.WhenService, defaultContract string) *WhenHandler {
+	handler := &WhenHandler{svc: svc}
+	if defaultContract != "" {
+		handler.defaultContract = common.HexToAddress(defaultContract)
+		handler.hasDefault = true
+	}
+	return handler
 }
 
 func (h *WhenHandler) GetBalance(ctx *gin.Context) {
@@ -27,7 +35,11 @@ func (h *WhenHandler) GetBalance(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	contractAddress := common.HexToAddress(ctx.Query("contractAddress"))
+	contractAddress, err := h.resolveContractAddress(ctx.Query("contractAddress"))
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 	owner := crypto.PubkeyToAddress(privateKey.PublicKey)
 	balanceOf, err := h.svc.GetBalance(ctx.Request.Context(), contractAddress, owner)
 	if err != nil {
@@ -45,7 +57,11 @@ func (h *WhenHandler) Allowance(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	contractAddress := common.HexToAddress(ctx.Query("contractAddress"))
+	contractAddress, err := h.resolveContractAddress(ctx.Query("contractAddress"))
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 	from := crypto.PubkeyToAddress(privateKey.PublicKey)
 	to := common.HexToAddress(ctx.Query("to"))
 	allowance, err := h.svc.Allowance(ctx.Request.Context(), contractAddress, from, to)
@@ -64,7 +80,11 @@ func (h *WhenHandler) TransferFrom(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	contractAddress := common.HexToAddress(ctx.PostForm("contractAddress"))
+	contractAddress, err := h.resolveContractAddress(ctx.PostForm("contractAddress"))
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 	dst := common.HexToAddress(ctx.PostForm("dst"))
 	amount := new(big.Int).Mul(big.NewInt(1), big.NewInt(1e18))
 	tx, err := h.svc.TransferFrom(ctx.Request.Context(), contractAddress, privateKey, dst, amount)
@@ -83,7 +103,11 @@ func (h *WhenHandler) Deposit(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	contractAddress := common.HexToAddress(ctx.PostForm("contractAddress"))
+	contractAddress, err := h.resolveContractAddress(ctx.PostForm("contractAddress"))
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 	amount := big.NewInt(1000000000000000000)
 	tx, err := h.svc.Deposit(ctx.Request.Context(), contractAddress, privateKey, amount)
 	if err != nil {
@@ -101,7 +125,11 @@ func (h *WhenHandler) Approve(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	contractAddress := common.HexToAddress(ctx.PostForm("contractAddress"))
+	contractAddress, err := h.resolveContractAddress(ctx.PostForm("contractAddress"))
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 	to := ctx.PostForm("guy")
 	if to == "" {
 		to = ctx.PostForm("to")
@@ -124,7 +152,11 @@ func (h *WhenHandler) Withdraw(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	contractAddress := common.HexToAddress(ctx.PostForm("contractAddress"))
+	contractAddress, err := h.resolveContractAddress(ctx.PostForm("contractAddress"))
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 	amount := ctx.PostForm("amount")
 	amountInt, err := strconv.Atoi(amount)
 	if err != nil {
@@ -145,4 +177,14 @@ func parsePrivateKey(hexKey string) (*ecdsa.PrivateKey, error) {
 		hexKey = hexKey[2:]
 	}
 	return crypto.HexToECDSA(hexKey)
+}
+
+func (h *WhenHandler) resolveContractAddress(address string) (common.Address, error) {
+	if address == "" {
+		if h.hasDefault {
+			return h.defaultContract, nil
+		}
+		return common.Address{}, errors.New("contractAddress is required")
+	}
+	return common.HexToAddress(address), nil
 }

@@ -6,10 +6,10 @@
 
 - `main.go`
   - 启动 HTTP 服务
-  - 创建以太坊客户端、Service 和 Handler
+  - 读取配置，创建以太坊客户端、Service 和 Handler
 - `routers/`
   - 路由注册与分发
-- `handler/`
+- `handle/`
   - 负责解析请求参数、校验、返回 JSON
   - 不直接写链交互逻辑
 - `service/`
@@ -22,7 +22,7 @@
 
 ## Handler 的作用
 
-Handler（`controller/when_handler.go`）只做“HTTP 相关”的事情：
+Handler（`handle/when_handler.go`）只做“HTTP 相关”的事情：
 1. 解析参数
 2. 调用 Service
 3. 返回 JSON
@@ -47,3 +47,12 @@ HTTP 请求
       -> Service（合约交互）
         -> Ethereum 节点
 ```
+
+## 配置文件
+
+默认读取 `08-go-solidity-when/config.json`，也可以用环境变量覆盖：
+
+- `WHEN_CONFIG_PATH`：配置文件路径
+- `WHEN_RPC_URL`：HTTP RPC 地址
+- `WHEN_WS_URL`：WebSocket RPC 地址
+- `WHEN_CONTRACT_ADDRESS`：合约地址
