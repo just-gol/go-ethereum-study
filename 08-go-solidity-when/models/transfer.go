@@ -1,13 +1,12 @@
 package models
 
-import (
-	"math/big"
-
-	"github.com/ethereum/go-ethereum/common"
-)
-
 type Transfer struct {
-	Src common.Address
-	Dst common.Address
-	Wad *big.Int
+	Id  int    `json:"id"`
+	Src string `json:"src"`
+	Dst string `json:"dst"`
+	Wad string `gorm:"type:decimal(65,0)"`
+}
+
+func (Transfer) TableName() string {
+	return "transfer"
 }

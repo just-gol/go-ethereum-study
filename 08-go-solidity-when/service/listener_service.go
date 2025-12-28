@@ -1,6 +1,7 @@
 package service
 
 import (
+	"08-go-solidity-when/models"
 	"context"
 	"fmt"
 	"log"
@@ -99,24 +100,35 @@ func (l *listenerService) MonitorEvent(ctx context.Context, contractAddress comm
 			return
 		case ev := <-sink:
 			fmt.Printf("Approval src=%s guy=%s wad=%s\n", ev.Src.Hex(), ev.Guy.Hex(), ev.Wad.String())
-			//approval := models.Approval{
-			//	Src: ev.Src,
-			//	Guy: ev.Guy,
-			//	Wad: ev.Wad,
-			//}
+			approval := models.Approval{
+				Src: ev.Src.String(),
+				Guy: ev.Guy.String(),
+				Wad: ev.Wad.String(),
+			}
+			models.DB.Create(&approval)
 		case ev := <-transfers:
 			//  event Transfer(address indexed src, address indexed dst, uint wad);
 			fmt.Printf("Transfer src=%s dst=%s wad=%s\n", ev.Src.Hex(), ev.Dst.Hex(), ev.Wad.String())
-		//transfer := models.Transfer{
-		//	Src: ev.Src,
-		//	Dst: ev.Dst,
-		//	Wad: ev.Wad,
-		//}
+			transfer := models.Transfer{
+				Src: ev.Src.String(),
+				Dst: ev.Dst.String(),
+				Wad: ev.Wad.String(),
+			}
+			models.DB.Create(&transfer)
 		case ev := <-deposit:
 			fmt.Printf("Deposit dst=%s wad=%s\n", ev.Dst.Hex(), ev.Wad.String())
+			deposit := models.Deposit{
+				Dst: ev.Dst.String(),
+				Wad: ev.Wad.String(),
+			}
+			models.DB.Create(&deposit)
 		case ev := <-withdraw:
 			fmt.Printf("withdraw src=%s wad=%s\n", ev.Src.Hex(), ev.Wad.String())
-
+			withdraw := models.Withdraw{
+				Src: ev.Src.String(),
+				Wad: ev.Wad.String(),
+			}
+			models.DB.Create(&withdraw)
 		}
 	}
 }

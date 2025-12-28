@@ -1,13 +1,12 @@
 package models
 
-import (
-	"math/big"
-
-	"github.com/ethereum/go-ethereum/common"
-)
-
 type Approval struct {
-	Src common.Address
-	Guy common.Address
-	Wad *big.Int
+	Id  int    `json:"id"`
+	Src string `json:"src"`
+	Guy string `json:"guy"`
+	Wad string `gorm:"type:decimal(65,0)"`
+}
+
+func (Approval) TableName() string {
+	return "approval"
 }

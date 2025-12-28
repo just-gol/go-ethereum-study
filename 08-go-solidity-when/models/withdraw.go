@@ -1,12 +1,11 @@
 package models
 
-import (
-	"math/big"
-
-	"github.com/ethereum/go-ethereum/common"
-)
-
 type Withdraw struct {
-	Src common.Address
-	Wad *big.Int
+	Id  int    `json:"id"`
+	Src string `json:"src"`
+	Wad string `gorm:"type:decimal(65,0)"`
+}
+
+func (Withdraw) TableName() string {
+	return "withdraw"
 }
