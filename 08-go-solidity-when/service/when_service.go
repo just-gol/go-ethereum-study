@@ -17,7 +17,7 @@ import (
 type WhenService interface {
 	GetBalance(ctx context.Context, contractAddress, owner common.Address) (*big.Int, error)
 	Allowance(ctx context.Context, contractAddress, owner, spender common.Address) (*big.Int, error)
-	TransferFrom(ctx context.Context, contractAddress common.Address, privateKey *ecdsa.PrivateKey, dst common.Address, amount *big.Int) (*types.Transaction, error)
+	TransferFrom(ctx context.Context, contractAddress common.Address, privateKey *ecdsa.PrivateKey, src common.Address, dst common.Address, amount *big.Int) (*types.Transaction, error)
 	Deposit(ctx context.Context, contractAddress common.Address, privateKey *ecdsa.PrivateKey, amount *big.Int) (*types.Transaction, error)
 	Approve(ctx context.Context, contractAddress common.Address, privateKey *ecdsa.PrivateKey, spender common.Address, amount *big.Int) (*types.Transaction, error)
 	Withdraw(ctx context.Context, contractAddress common.Address, privateKey *ecdsa.PrivateKey, amount *big.Int) (*types.Transaction, error)
@@ -47,7 +47,7 @@ func (s *whenService) Allowance(ctx context.Context, contractAddress, owner, spe
 	return w.Allowance(&bind.CallOpts{Context: ctx}, owner, spender)
 }
 
-func (s *whenService) TransferFrom(ctx context.Context, contractAddress common.Address, privateKey *ecdsa.PrivateKey, dst common.Address, amount *big.Int) (*types.Transaction, error) {
+func (s *whenService) TransferFrom(ctx context.Context, contractAddress common.Address, privateKey *ecdsa.PrivateKey, src common.Address, dst common.Address, amount *big.Int) (*types.Transaction, error) {
 	w, err := when.NewWhen(contractAddress, s.client)
 	if err != nil {
 		return nil, err
@@ -74,7 +74,7 @@ func (s *whenService) TransferFrom(ctx context.Context, contractAddress common.A
 	auth.GasLimit = uint64(300000)
 	auth.Value = big.NewInt(0)
 
-	return w.TransferFrom(auth, crypto.PubkeyToAddress(privateKey.PublicKey), dst, amount)
+	return w.TransferFrom(auth, src, dst, amount)
 }
 
 func (s *whenService) Deposit(ctx context.Context, contractAddress common.Address, privateKey *ecdsa.PrivateKey, amount *big.Int) (*types.Transaction, error) {

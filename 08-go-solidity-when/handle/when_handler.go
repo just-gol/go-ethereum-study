@@ -86,8 +86,9 @@ func (h *WhenHandler) TransferFrom(ctx *gin.Context) {
 		return
 	}
 	dst := common.HexToAddress(ctx.PostForm("dst"))
+	src := common.HexToAddress(ctx.PostForm("src"))
 	amount := new(big.Int).Mul(big.NewInt(1), big.NewInt(1e18))
-	tx, err := h.svc.TransferFrom(ctx.Request.Context(), contractAddress, privateKey, dst, amount)
+	tx, err := h.svc.TransferFrom(ctx.Request.Context(), contractAddress, privateKey, src, dst, amount)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
