@@ -29,6 +29,8 @@ func main() {
 	handler := handle.NewWhenHandler(whenService, cfg.ContractAddress)
 	txService := service.NewTxService(client)
 	txHandler := handle.NewTxHandler(txService)
+	approvalService := service.NewApprovalService()
+	approvalHandle := handle.NewApprovalHandle(approvalService)
 
 	wsClient, err := ethclient.Dial(cfg.WSURL)
 	if err != nil {
@@ -43,6 +45,6 @@ func main() {
 	}
 	r := gin.Default()
 	r.Use(cors.Default())
-	routers.ApiRoutersInit(r, handler, txHandler)
+	routers.ApiRoutersInit(r, handler, txHandler, approvalHandle)
 	_ = r.Run()
 }
