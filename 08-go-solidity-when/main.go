@@ -27,6 +27,9 @@ func main() {
 	}
 	whenService := service.NewWhenService(client)
 	handler := handle.NewWhenHandler(whenService, cfg.ContractAddress)
+	txService := service.NewTxService(client)
+	txHandler := handle.NewTxHandler(txService)
+
 	wsClient, err := ethclient.Dial(cfg.WSURL)
 	if err != nil {
 		log.Fatal(err)
@@ -40,6 +43,6 @@ func main() {
 	}
 	r := gin.Default()
 	r.Use(cors.Default())
-	routers.ApiRoutersInit(r, handler)
+	routers.ApiRoutersInit(r, handler, txHandler)
 	_ = r.Run()
 }
