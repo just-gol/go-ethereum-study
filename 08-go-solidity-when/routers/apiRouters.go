@@ -8,7 +8,7 @@ import (
 
 func ApiRoutersInit(r *gin.Engine, handler *handle.WhenHandler, txHandler *handle.TxHandler,
 	approvalHandler *handle.ApprovalHandle, depositHandler *handle.DepositHandle,
-	transferHandler *handle.TransferHandle) {
+	transferHandler *handle.TransferHandle, withdrawHandle *handle.WithdrawHandle) {
 	group := r.Group("/api")
 	{
 		group.GET("/getBalance", handler.GetBalance)
@@ -24,5 +24,7 @@ func ApiRoutersInit(r *gin.Engine, handler *handle.WhenHandler, txHandler *handl
 		group.GET("/deposit/getPage", depositHandler.GetPage)
 		group.GET("/transfer/getOne", transferHandler.GetOne)
 		group.GET("/transfer/getPage", transferHandler.GetPage)
+		group.GET("/withdraw/getOne", withdrawHandle.GetOne)
+		group.GET("/withdraw/getPage", withdrawHandle.GetPage)
 	}
 }

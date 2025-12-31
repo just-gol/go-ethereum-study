@@ -32,9 +32,9 @@ func (transferService) GetPage(transfer models.Transfer) ([]models.Transfer, int
 		tx = tx.Where("dst = ?", transfer.Dst)
 		countTx = countTx.Where("dst = ?", transfer.Dst)
 	}
-	if transfer.Dst != "" {
-		tx = tx.Where("wad = ?", transfer.Dst)
-		countTx = countTx.Where("wad = ?", transfer.Dst)
+	if transfer.Src != "" {
+		tx = tx.Where("wad = ?", transfer.Src)
+		countTx = countTx.Where("wad = ?", transfer.Src)
 	}
 	if transfer.Wad != "" {
 		tx = tx.Where("wad = ?", transfer.Wad)
