@@ -16,7 +16,7 @@ func ApiRoutersInit(r *gin.Engine, handler *handle.WhenHandler, txHandler *handl
 		group.GET("/allowance", handler.Allowance)
 		group.POST("/withdraw", handler.Withdraw)
 		group.POST("/sendValue", txHandler.SendValueAndTrack)
-		group.POST("/getOne", approvalHandler.GetOne)
-		group.POST("/getPage", approvalHandler.GetPage)
+		group.GET("/getOne", approvalHandler.GetOne)
+		group.GET("/getPage", approvalHandler.GetPage)
 	}
 }

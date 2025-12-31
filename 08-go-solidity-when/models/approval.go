@@ -5,7 +5,7 @@ type Approval struct {
 	Src  string `json:"src"`
 	Guy  string `json:"guy"`
 	Wad  string `gorm:"type:decimal(65,0)"`
-	Page Page   `json:"page" gorm:"-"`
+	Page Page   `json:"-" gorm:"-"`
 }
 
 func (Approval) TableName() string {
