@@ -6,7 +6,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func ApiRoutersInit(r *gin.Engine, handler *handle.WhenHandler, txHandler *handle.TxHandler, approvalHandler *handle.ApprovalHandle) {
+func ApiRoutersInit(r *gin.Engine, handler *handle.WhenHandler, txHandler *handle.TxHandler,
+	approvalHandler *handle.ApprovalHandle, depositHandler *handle.DepositHandle) {
 	group := r.Group("/api")
 	{
 		group.GET("/getBalance", handler.GetBalance)
@@ -16,7 +17,9 @@ func ApiRoutersInit(r *gin.Engine, handler *handle.WhenHandler, txHandler *handl
 		group.GET("/allowance", handler.Allowance)
 		group.POST("/withdraw", handler.Withdraw)
 		group.POST("/sendValue", txHandler.SendValueAndTrack)
-		group.GET("/getOne", approvalHandler.GetOne)
-		group.GET("/getPage", approvalHandler.GetPage)
+		group.GET("/approval/getOne", approvalHandler.GetOne)
+		group.GET("/approval/getPage", approvalHandler.GetPage)
+		group.GET("/deposit/getOne", depositHandler.GetOne)
+		group.GET("/deposit/getPage", depositHandler.GetPage)
 	}
 }

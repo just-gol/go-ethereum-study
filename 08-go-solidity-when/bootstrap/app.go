@@ -25,6 +25,8 @@ func NewApp(cfg config.Config) (*gin.Engine, error) {
 	transactionHandler := handle.NewTxHandler(transactionService)
 	approvalService := service.NewApprovalService()
 	approvalHandler := handle.NewApprovalHandle(approvalService)
+	depositService := service.NewDepositService()
+	depositHandle := handle.NewDepositHandle(depositService)
 
 	wsClient, err := ethclient.Dial(cfg.WSURL)
 	if err != nil {
@@ -40,6 +42,6 @@ func NewApp(cfg config.Config) (*gin.Engine, error) {
 
 	r := gin.Default()
 	r.Use(cors.Default())
-	routers.ApiRoutersInit(r, whenHandler, transactionHandler, approvalHandler)
+	routers.ApiRoutersInit(r, whenHandler, transactionHandler, approvalHandler, depositHandle)
 	return r, nil
 }
