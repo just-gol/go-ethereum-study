@@ -18,6 +18,7 @@ import (
 )
 
 func NewApp(cfg config.Config) (*gin.Engine, error) {
+	// 1) 初始化 HTTP RPC 客户端（读链/发交易）
 	client, err := ethclient.Dial(cfg.RPCURL)
 	if err != nil {
 		return nil, err
@@ -34,9 +35,11 @@ func NewApp(cfg config.Config) (*gin.Engine, error) {
 	transferHandle := handle.NewTransferHandle(transferService)
 	withdrawService := service.NewWithdrawService()
 	withdrawHandle := handle.NewWithdrawHandle(withdrawService)
+	// 2) 确保事件索引与同步进度表存在
 	if err := models.DB.AutoMigrate(&models.EventLog{}, &models.SyncState{}); err != nil {
 		return nil, err
 	}
+	// 3) 初始化 WS 客户端（实时订阅事件）
 	wsClient, err := ethclient.Dial(cfg.WSURL)
 	if err != nil {
 		return nil, err
@@ -45,6 +48,7 @@ func NewApp(cfg config.Config) (*gin.Engine, error) {
 	if cfg.ContractAddress != "" {
 		contractAddress := common.HexToAddress(cfg.ContractAddress)
 		go func() {
+			// 启动回放：先补历史，再定时补漏
 			if err := listenerSvc.ReplayFromLast(context.Background(), contractAddress, cfg.StartBlock, cfg.Confirmations); err != nil {
 				log.Println("replay startup error:", err)
 				return
@@ -52,10 +56,12 @@ func NewApp(cfg config.Config) (*gin.Engine, error) {
 			listenerSvc.StartReplayLoop(context.Background(), contractAddress, cfg.StartBlock, cfg.Confirmations, time.Duration(cfg.ReplayIntervalSecond)*time.Second)
 		}()
 		go func() {
+			// 启动实时监听
 			listenerSvc.MonitorEvent(context.Background(), contractAddress)
 		}()
 	}
 
+	// 4) 初始化 HTTP 路由
 	r := gin.Default()
 	r.Use(cors.Default())
 	routers.ApiRoutersInit(r, whenHandler, transactionHandler, approvalHandler, depositHandle, transferHandle, withdrawHandle)
