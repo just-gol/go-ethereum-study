@@ -1,20 +1,30 @@
 package service
 
 import (
-	"08-go-solidity-when/models"
 	"context"
+	"errors"
 	"fmt"
 	"log"
+	"strings"
+	"time"
+
+	"08-go-solidity-when/models"
 
 	when "08-go-solidity-when/gen"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"gorm.io/gorm"
 )
 
 type ListenerService interface {
 	MonitorEvent(ctx context.Context, contractAddress common.Address)
+	// ReplayFromLast 从上次同步区块回放到最新确认区块。
+	ReplayFromLast(ctx context.Context, contractAddress common.Address, startBlock uint64, confirmations uint64) error
+	// StartReplayLoop 定时回放，补齐重启或断线期间的缺失数据。
+	StartReplayLoop(ctx context.Context, contractAddress common.Address, startBlock uint64, confirmations uint64, interval time.Duration)
 }
 
 type listenerService struct {
@@ -26,28 +36,7 @@ func NewListenerService(client *ethclient.Client) ListenerService {
 }
 
 func (l *listenerService) MonitorEvent(ctx context.Context, contractAddress common.Address) {
-	// SubscribeFilterLogs
-	//拿到的是原始 types.Log（topic + data）。
-	//需要你自己用 ABI 解析事件。
-	/**
-		query := ethereum.FilterQuery{
-		Addresses: []common.Address{contractAddress},
-	}
-	logs := make(chan types.Log)
-	sub, err := l.client.SubscribeFilterLogs(ctx, query, logs)
-	if err != nil {
-		log.Fatal(err)
-	}
-	for {
-		select {
-		case err := <-sub.Err():
-			fmt.Println("error:", err)
-		case vLog := <-logs:
-			fmt.Println(vLog)
-		}
-	}
-	*/
-	// WatchApproval 直接拿到结构化事件 WhenApproval（字段已解析）。
+	// 实时订阅：使用 abigen 的 Watch* 直接解析事件字段。
 	w, err := when.NewWhen(contractAddress, l.client)
 	if err != nil {
 		log.Println("listener init error:", err)
@@ -99,36 +88,233 @@ func (l *listenerService) MonitorEvent(ctx context.Context, contractAddress comm
 			log.Println("withdraw sub error:", err)
 			return
 		case ev := <-sink:
-			fmt.Printf("Approval src=%s guy=%s wad=%s\n", ev.Src.Hex(), ev.Guy.Hex(), ev.Wad.String())
-			approval := models.Approval{
-				Src: ev.Src.String(),
-				Guy: ev.Guy.String(),
-				Wad: ev.Wad.String(),
-			}
-			models.DB.Create(&approval)
+			l.handleApproval(ev)
 		case ev := <-transfers:
-			//  event Transfer(address indexed src, address indexed dst, uint wad);
-			fmt.Printf("Transfer src=%s dst=%s wad=%s\n", ev.Src.Hex(), ev.Dst.Hex(), ev.Wad.String())
-			transfer := models.Transfer{
-				Src: ev.Src.String(),
-				Dst: ev.Dst.String(),
-				Wad: ev.Wad.String(),
-			}
-			models.DB.Create(&transfer)
+			l.handleTransfer(ev)
 		case ev := <-deposit:
-			fmt.Printf("Deposit dst=%s wad=%s\n", ev.Dst.Hex(), ev.Wad.String())
-			deposit := models.Deposit{
-				Dst: ev.Dst.String(),
-				Wad: ev.Wad.String(),
-			}
-			models.DB.Create(&deposit)
+			l.handleDeposit(ev)
 		case ev := <-withdraw:
-			fmt.Printf("withdraw src=%s wad=%s\n", ev.Src.Hex(), ev.Wad.String())
-			withdraw := models.Withdraw{
-				Src: ev.Src.String(),
-				Wad: ev.Wad.String(),
-			}
-			models.DB.Create(&withdraw)
+			l.handleWithdraw(ev)
 		}
 	}
+}
+
+func (l *listenerService) ReplayFromLast(ctx context.Context, contractAddress common.Address, startBlock uint64, confirmations uint64) error {
+	// 读取上次同步区块；首次启动则用配置的起始区块。
+	key := syncKey(contractAddress)
+	last, err := l.getSyncBlock(key)
+	if err != nil {
+		return err
+	}
+	if last == 0 && startBlock > 0 {
+		last = startBlock - 1
+	}
+
+	// 仅回放到最新确认区块，避免链重组带来的回滚。
+	latestHeader, err := l.client.HeaderByNumber(ctx, nil)
+	if err != nil {
+		return err
+	}
+	latest := latestHeader.Number.Uint64()
+	if confirmations > 0 && latest >= confirmations {
+		latest -= confirmations
+	}
+
+	if last >= latest {
+		return nil
+	}
+
+	// 回放区间：[last+1, latest]
+	return l.replayRange(ctx, contractAddress, last+1, latest)
+}
+
+func (l *listenerService) StartReplayLoop(ctx context.Context, contractAddress common.Address, startBlock uint64, confirmations uint64, interval time.Duration) {
+	// 定时补数据：防止 WS 断线或服务重启导致漏事件。
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if err := l.ReplayFromLast(ctx, contractAddress, startBlock, confirmations); err != nil {
+				log.Println("replay loop error:", err)
+			}
+		}
+	}
+}
+
+func (l *listenerService) replayRange(ctx context.Context, contractAddress common.Address, start uint64, end uint64) error {
+	// 历史回放：按区块范围 Filter* 批量拉取事件。
+	w, err := when.NewWhen(contractAddress, l.client)
+	if err != nil {
+		return err
+	}
+	endCopy := end
+
+	approvalIter, err := w.FilterApproval(&bind.FilterOpts{Start: start, End: &endCopy, Context: ctx}, nil, nil)
+	if err != nil {
+		return err
+	}
+	defer approvalIter.Close()
+	for approvalIter.Next() {
+		l.handleApproval(approvalIter.Event)
+	}
+	if err := approvalIter.Error(); err != nil {
+		return err
+	}
+
+	transferIter, err := w.FilterTransfer(&bind.FilterOpts{Start: start, End: &endCopy, Context: ctx}, nil, nil)
+	if err != nil {
+		return err
+	}
+	defer transferIter.Close()
+	for transferIter.Next() {
+		l.handleTransfer(transferIter.Event)
+	}
+	if err := transferIter.Error(); err != nil {
+		return err
+	}
+
+	depositIter, err := w.FilterDeposit(&bind.FilterOpts{Start: start, End: &endCopy, Context: ctx}, nil)
+	if err != nil {
+		return err
+	}
+	defer depositIter.Close()
+	for depositIter.Next() {
+		l.handleDeposit(depositIter.Event)
+	}
+	if err := depositIter.Error(); err != nil {
+		return err
+	}
+
+	withdrawIter, err := w.FilterWithdrawal(&bind.FilterOpts{Start: start, End: &endCopy, Context: ctx}, nil)
+	if err != nil {
+		return err
+	}
+	defer withdrawIter.Close()
+	for withdrawIter.Next() {
+		l.handleWithdraw(withdrawIter.Event)
+	}
+	if err := withdrawIter.Error(); err != nil {
+		return err
+	}
+
+	return l.setSyncBlock(syncKey(contractAddress), end)
+}
+
+func (l *listenerService) handleApproval(ev *when.WhenApproval) {
+	if ev == nil {
+		return
+	}
+	// 幂等入库：txHash + logIndex 唯一。
+	ok, err := l.recordEvent(ev.Raw, "Approval")
+	if err != nil || !ok {
+		return
+	}
+	fmt.Printf("Approval src=%s guy=%s wad=%s\n", ev.Src.Hex(), ev.Guy.Hex(), ev.Wad.String())
+	approval := models.Approval{
+		Src: ev.Src.String(),
+		Guy: ev.Guy.String(),
+		Wad: ev.Wad.String(),
+	}
+	models.DB.Create(&approval)
+	_ = l.setSyncBlock(syncKey(ev.Raw.Address), ev.Raw.BlockNumber)
+}
+
+func (l *listenerService) handleTransfer(ev *when.WhenTransfer) {
+	if ev == nil {
+		return
+	}
+	// 幂等入库：txHash + logIndex 唯一。
+	ok, err := l.recordEvent(ev.Raw, "Transfer")
+	if err != nil || !ok {
+		return
+	}
+	fmt.Printf("Transfer src=%s dst=%s wad=%s\n", ev.Src.Hex(), ev.Dst.Hex(), ev.Wad.String())
+	transfer := models.Transfer{
+		Src: ev.Src.String(),
+		Dst: ev.Dst.String(),
+		Wad: ev.Wad.String(),
+	}
+	models.DB.Create(&transfer)
+	_ = l.setSyncBlock(syncKey(ev.Raw.Address), ev.Raw.BlockNumber)
+}
+
+func (l *listenerService) handleDeposit(ev *when.WhenDeposit) {
+	if ev == nil {
+		return
+	}
+	// 幂等入库：txHash + logIndex 唯一。
+	ok, err := l.recordEvent(ev.Raw, "Deposit")
+	if err != nil || !ok {
+		return
+	}
+	fmt.Printf("Deposit dst=%s wad=%s\n", ev.Dst.Hex(), ev.Wad.String())
+	deposit := models.Deposit{
+		Dst: ev.Dst.String(),
+		Wad: ev.Wad.String(),
+	}
+	models.DB.Create(&deposit)
+	_ = l.setSyncBlock(syncKey(ev.Raw.Address), ev.Raw.BlockNumber)
+}
+
+func (l *listenerService) handleWithdraw(ev *when.WhenWithdrawal) {
+	if ev == nil {
+		return
+	}
+	// 幂等入库：txHash + logIndex 唯一。
+	ok, err := l.recordEvent(ev.Raw, "Withdrawal")
+	if err != nil || !ok {
+		return
+	}
+	fmt.Printf("Withdraw src=%s wad=%s\n", ev.Src.Hex(), ev.Wad.String())
+	withdraw := models.Withdraw{
+		Src: ev.Src.String(),
+		Wad: ev.Wad.String(),
+	}
+	models.DB.Create(&withdraw)
+	_ = l.setSyncBlock(syncKey(ev.Raw.Address), ev.Raw.BlockNumber)
+}
+
+func (l *listenerService) recordEvent(logEntry types.Log, eventName string) (bool, error) {
+	// FirstOrCreate 保证回放和实时订阅不会重复落库。
+	entry := models.EventLog{
+		TxHash:      logEntry.TxHash.Hex(),
+		LogIndex:    logEntry.Index,
+		BlockNumber: logEntry.BlockNumber,
+		Event:       eventName,
+		Contract:    logEntry.Address.Hex(),
+	}
+
+	result := models.DB.Where("tx_hash = ? AND log_index = ?", entry.TxHash, entry.LogIndex).FirstOrCreate(&entry)
+	if result.Error != nil {
+		return false, result.Error
+	}
+	return result.RowsAffected > 0, nil
+}
+
+func (l *listenerService) getSyncBlock(key string) (uint64, error) {
+	// 同步进度写在 DB 里，重启后可续跑。
+	var state models.SyncState
+	err := models.DB.Where("name = ?", key).First(&state).Error
+	if err == nil {
+		return state.BlockNumber, nil
+	}
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return 0, nil
+	}
+	return 0, err
+}
+
+func (l *listenerService) setSyncBlock(key string, block uint64) error {
+	// Upsert 最新已处理区块。
+	state := models.SyncState{Name: key, BlockNumber: block}
+	return models.DB.Where("name = ?", key).Assign(models.SyncState{BlockNumber: block}).FirstOrCreate(&state).Error
+}
+
+func syncKey(contractAddress common.Address) string {
+	// 规范化地址生成稳定的 key。
+	return "when:" + strings.ToLower(contractAddress.Hex())
 }

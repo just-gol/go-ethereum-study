@@ -2,9 +2,12 @@ package bootstrap
 
 import (
 	"context"
+	"log"
+	"time"
 
 	"08-go-solidity-when/config"
 	"08-go-solidity-when/handle"
+	"08-go-solidity-when/models"
 	"08-go-solidity-when/routers"
 	"08-go-solidity-when/service"
 
@@ -31,6 +34,9 @@ func NewApp(cfg config.Config) (*gin.Engine, error) {
 	transferHandle := handle.NewTransferHandle(transferService)
 	withdrawService := service.NewWithdrawService()
 	withdrawHandle := handle.NewWithdrawHandle(withdrawService)
+	if err := models.DB.AutoMigrate(&models.EventLog{}, &models.SyncState{}); err != nil {
+		return nil, err
+	}
 	wsClient, err := ethclient.Dial(cfg.WSURL)
 	if err != nil {
 		return nil, err
@@ -38,6 +44,13 @@ func NewApp(cfg config.Config) (*gin.Engine, error) {
 	listenerSvc := service.NewListenerService(wsClient)
 	if cfg.ContractAddress != "" {
 		contractAddress := common.HexToAddress(cfg.ContractAddress)
+		go func() {
+			if err := listenerSvc.ReplayFromLast(context.Background(), contractAddress, cfg.StartBlock, cfg.Confirmations); err != nil {
+				log.Println("replay startup error:", err)
+				return
+			}
+			listenerSvc.StartReplayLoop(context.Background(), contractAddress, cfg.StartBlock, cfg.Confirmations, time.Duration(cfg.ReplayIntervalSecond)*time.Second)
+		}()
 		go func() {
 			listenerSvc.MonitorEvent(context.Background(), contractAddress)
 		}()
