@@ -288,6 +288,7 @@ func (l *listenerService) recordEvent(logEntry types.Log, eventName string) (boo
 		Contract:    logEntry.Address.Hex(),
 	}
 
+	// FirstOrCreate 查到就返回,没查到就写入
 	result := models.DB.Where("tx_hash = ? AND log_index = ?", entry.TxHash, entry.LogIndex).FirstOrCreate(&entry)
 	if result.Error != nil {
 		return false, result.Error
@@ -311,6 +312,7 @@ func (l *listenerService) getSyncBlock(key string) (uint64, error) {
 func (l *listenerService) setSyncBlock(key string, block uint64) error {
 	// Upsert 最新已处理区块。
 	state := models.SyncState{Name: key, BlockNumber: block}
+	//Assign GORM 会在“查到已存在记录”的情况下做更新，没查到就创建;从而达到“更新最新区块号”的目的
 	return models.DB.Where("name = ?", key).Assign(models.SyncState{BlockNumber: block}).FirstOrCreate(&state).Error
 }
 
