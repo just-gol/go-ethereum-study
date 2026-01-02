@@ -3,6 +3,7 @@ package models
 import (
 	"fmt"
 	"log"
+	"os"
 
 	"gopkg.in/ini.v1"
 	"gorm.io/driver/mysql"
@@ -14,8 +15,11 @@ var DB *gorm.DB
 var err error
 
 func init() {
-
-	cfg, err := ini.Load("./config/app.ini")
+	path := os.Getenv("APP_CONFIG_PATH")
+	if path == "" {
+		path = "./config/app.ini"
+	}
+	cfg, err := ini.Load(path)
 	if err != nil {
 		log.Fatal(err)
 	}
