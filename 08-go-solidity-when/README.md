@@ -56,3 +56,30 @@ HTTP 请求
 - `WHEN_RPC_URL`：HTTP RPC 地址
 - `WHEN_WS_URL`：WebSocket RPC 地址
 - `WHEN_CONTRACT_ADDRESS`：合约地址
+
+## 测试运行方式
+
+注意：测试会触发 `models` 包初始化，需要配置 `APP_CONFIG_PATH` 指向 `config/app.ini`。
+
+方式一：进入模块目录运行
+
+```bash
+cd /home/lsy/go-ethereum-study/08-go-solidity-when
+APP_CONFIG_PATH=/home/lsy/go-ethereum-study/08-go-solidity-when/config/app.ini \
+go test ./handle -run TestWhenHandlerGetBalance
+```
+
+方式二：使用 `-C` 指定工作目录（Go 1.20+）
+
+```bash
+APP_CONFIG_PATH=/home/lsy/go-ethereum-study/08-go-solidity-when/config/app.ini \
+go test -C /home/lsy/go-ethereum-study/08-go-solidity-when ./handle -run TestWhenHandlerGetBalance
+```
+
+方式三：运行所有测试
+
+```bash
+cd /home/lsy/go-ethereum-study/08-go-solidity-when
+APP_CONFIG_PATH=/home/lsy/go-ethereum-study/08-go-solidity-when/config/app.ini \
+go test ./...
+```
