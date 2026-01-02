@@ -78,13 +78,11 @@ func (s *txService) SendValueAndTrack(ctx context.Context, privateKey *ecdsa.Pri
 }
 
 /*
-*
-
-	waitReceipt 等“上链”
-	发送交易后不会立刻上链，receipt 只有在交易被打包后才会有。
-	这个函数用循环查询 TransactionReceipt：
-	没找到（pending）就等待一会儿再查
-	找到就返回 receipt（含成功/失败状态、区块号等）
+waitReceipt 等“上链”
+发送交易后不会立刻上链，receipt 只有在交易被打包后才会有。
+这个函数用循环查询 TransactionReceipt：
+没找到（pending）就等待一会儿再查
+找到就返回 receipt（含成功/失败状态、区块号等）
 */
 func waitReceipt(ctx context.Context, client *ethclient.Client, hash common.Hash) (*types.Receipt, error) {
 	ticker := time.NewTicker(2 * time.Second)
@@ -107,11 +105,9 @@ func waitReceipt(ctx context.Context, client *ethclient.Client, hash common.Hash
 }
 
 /*
-*
-
-	waitConfirmations 等“更稳一点”
-	交易刚打包可能会被“链重组”回滚，所以很多系统会等 N 个确认数。
-	它就是不断查最新区块号，直到达到 receipt.BlockNumber + confirmations - 1 才返回。
+waitConfirmations 等“更稳一点”
+交易刚打包可能会被“链重组”回滚，所以很多系统会等 N 个确认数。
+它就是不断查最新区块号，直到达到 receipt.BlockNumber + confirmations - 1 才返回。
 */
 func waitConfirmations(ctx context.Context, client *ethclient.Client, blockNumber *big.Int, confirmations uint64) error {
 	if confirmations == 0 {
