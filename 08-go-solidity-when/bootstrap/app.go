@@ -36,6 +36,7 @@ func NewApp(cfg config.Config) (*gin.Engine, error) {
 	withdrawService := service.NewWithdrawService()
 	withdrawHandle := handle.NewWithdrawHandle(withdrawService)
 	// 2) 确保事件索引与同步进度表存在
+	// AutoMigrate 是 GORM（Go 常用 ORM）提供的“自动迁移”能力：根据你传入的模型结构体，自动在数据库里创建/更新对应的表结构。
 	if err := models.DB.AutoMigrate(&models.EventLog{}, &models.SyncState{}); err != nil {
 		return nil, err
 	}

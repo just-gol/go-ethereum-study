@@ -158,37 +158,62 @@ func (m mockWithdrawService) GetPage(withdraw models.Withdraw) ([]models.Withdra
 	return m.getPageFn(withdraw)
 }
 
-func TestWhenHandlerGetBalance(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	privateKey, err := crypto.GenerateKey()
-	if err != nil {
-		t.Fatalf("generate key: %v", err)
+func TestWhenHandlerGetBalance(t *testing.T) { // 定义一个单元测试：测试 WhenHandler 的 GetBalance 接口行为
+	gin.SetMode(gin.TestMode) // 将 Gin 切换到测试模式，避免测试时输出多余日志等
+
+	privateKey, err := crypto.GenerateKey() // 生成一对新的 ECDSA 私钥（以太坊账户的私钥）
+	if err != nil {                         // 如果生成失败
+		t.Fatalf("generate key: %v", err) // 直接让测试失败并打印错误
 	}
+
+	// 将私钥转换成 16 进制字符串，并加上 0x 前缀（模拟请求参数 privateKeyString）
 	privHex := "0x" + hex.EncodeToString(crypto.FromECDSA(privateKey))
+
+	// 构造一个合约地址（这里用的是一个固定地址，模拟请求里的 contractAddress 参数）
 	contract := common.HexToAddress("0x0000000000000000000000000000000000000001")
 
+	// 构造一个 mock service（假实现），用于替代真实链上查询逻辑，从而让测试可控、可重复
 	mock := mockWhenService{
+		// 注入一个函数，用来模拟 getBalance 的行为
 		getBalanceFn: func(ctx context.Context, contractAddress, owner common.Address) (*big.Int, error) {
+			// 断言：handler 调用 service 时传入的 contractAddress 必须等于我们期望的地址
 			if contractAddress != contract {
-				t.Fatalf("unexpected contract: %s", contractAddress.Hex())
+				t.Fatalf("unexpected contract: %s", contractAddress.Hex()) // 若不一致，测试失败
 			}
+
+			// 返回一个固定余额 7（big.Int 是因为链上金额通常很大）
 			return big.NewInt(7), nil
 		},
 	}
-	handler := NewWhenHandler(mock, "")
 
-	r := gin.New()
-	r.GET("/getBalance", handler.GetBalance)
+	handler := NewWhenHandler(mock, "") // 用 mock service 创建 handler；第二个参数是配置（这里传空字符串）
 
-	req := httptest.NewRequest("GET", "/getBalance?privateKeyString="+privHex+"&contractAddress="+contract.Hex(), nil)
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
+	r := gin.New() // 创建一个全新的 Gin Engine（路由器），用于测试路由
 
-	if w.Code != 200 {
-		t.Fatalf("expected 200, got %d", w.Code)
+	r.GET("/getBalance", handler.GetBalance) // 注册 GET 路由：访问 /getBalance 时走 handler.GetBalance
+
+	// 构造一条 HTTP 请求：
+	// - Method: GET
+	// - Path: /getBalance
+	// - Query 参数：privateKeyString=... & contractAddress=...
+	req := httptest.NewRequest(
+		"GET",
+		"/getBalance?privateKeyString="+privHex+"&contractAddress="+contract.Hex(),
+		nil, // GET 请求一般没有 body，这里传 nil
+	)
+
+	w := httptest.NewRecorder() // 创建一个响应记录器，用于捕获 Gin 返回的响应（状态码/响应体等）
+
+	r.ServeHTTP(w, req) // 让 Gin 路由器处理这次请求，并把结果写入 w
+
+	if w.Code != 200 { // 断言：HTTP 状态码应该是 200 OK
+		t.Fatalf("expected 200, got %d", w.Code) // 如果不是 200，测试失败
 	}
+
+	// 断言：响应体中应包含 "balanceOf"
+	// 这里通常意味着 handler 返回内容里包含对 ERC20 balanceOf 的调用信息或说明文本
 	if !strings.Contains(w.Body.String(), "balanceOf") {
-		t.Fatalf("expected balanceOf in response, got %s", w.Body.String())
+		t.Fatalf("expected balanceOf in response, got %s", w.Body.String()) // 不包含则测试失败
 	}
 }
 
