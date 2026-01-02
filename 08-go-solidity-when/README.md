@@ -60,7 +60,10 @@ HTTP 请求
 ## 测试运行方式
 
 注意：测试会触发 `models` 包初始化，需要配置 `APP_CONFIG_PATH` 指向 `config/app.ini`。
-
+可在命令行输入,这样当前 shell 里就不用每次都写了
+```bash
+export APP_CONFIG_PATH=/home/lsy/go-ethereum-study/08-go-solidity-when/config/app.ini
+```
 方式一：进入模块目录运行
 
 ```bash
