@@ -48,6 +48,19 @@ HTTP 请求
         -> Ethereum 节点
 ```
 
+## 区块回放与定时同步
+
+项目在启动后会自动补齐历史区块事件，并定时回放补漏，流程如下：
+
+1) 读取上次同步区块（`sync_state` 表）。  
+2) 没有记录时，用配置里的 `start_block` 作为起点。  
+3) 查询链上最新区块 `latest`，减去 `confirmations` 后作为回放上限。  
+4) 使用 `Filter*` 在 `[last+1, latest]` 区间回放事件并入库。  
+5) 实时监听 `Watch*`，持续入库新事件。  
+6) 定时任务按 `replay_interval_seconds` 继续回放补漏。
+
+幂等策略：用 `event_log` 表的 `(tx_hash, log_index)` 做唯一约束，避免重复入库。
+
 ## 配置文件
 
 默认读取 `08-go-solidity-when/config.json`，也可以用环境变量覆盖：
