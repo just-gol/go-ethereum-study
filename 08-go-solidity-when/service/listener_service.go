@@ -200,7 +200,7 @@ func (l *listenerService) replayRange(ctx context.Context, contractAddress commo
 	if err := withdrawIter.Error(); err != nil {
 		return err
 	}
-
+	// 即使 end 这段区间没有任何事件，也把进度推进到 end，避免下次重复回放空区块
 	return l.setSyncBlock(syncKey(contractAddress), end)
 }
 
