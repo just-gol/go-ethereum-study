@@ -116,8 +116,8 @@ func (l *listenerService) ReplayFromLast(ctx context.Context, contractAddress co
 		return err
 	}
 	latest := latestHeader.Number.Uint64()
-	if confirmations > 0 && latest >= confirmations {
-		latest -= confirmations
+	if confirmations > 1 && latest >= confirmations-1 {
+		latest -= confirmations - 1
 	}
 
 	if last >= latest {
