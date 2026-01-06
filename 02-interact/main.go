@@ -7,15 +7,15 @@ import (
 	"math/big"
 
 	"context"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
-var quickNodeURL = "https://magical-wild-model.ethereum-sepolia.quiknode.pro/4291e8c1bb9318f2307ff3ff5174826487ef3940/"
 var localURL = "http://localhost:8545"
 
 func main() {
-	client, err := ethclient.Dial(quickNodeURL)
+	client, err := ethclient.Dial("quickNodeURL")
 	if err != nil {
 		log.Fatalf("Error to connect:%v", err)
 	}

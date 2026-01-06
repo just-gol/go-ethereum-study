@@ -11,7 +11,6 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
-var quickNodeURL = "https://magical-wild-model.ethereum-sepolia.quiknode.pro/4291e8c1bb9318f2307ff3ff5174826487ef3940/"
 var localURL = "http://localhost:8545"
 
 func main() {
@@ -27,7 +26,7 @@ func main() {
 	//}
 	// 0303d1f5f03ba235fd91190a998e24eca120708a
 	// 838089eabffb00a1ce873705173771475cc86b3c
-	client, err := ethclient.Dial(quickNodeURL)
+	client, err := ethclient.Dial("quickNodeURL")
 	if err != nil {
 		log.Fatal(err)
 	}
